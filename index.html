@@ -1,0 +1,252 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+#app{padding:1.5rem 1rem 2rem;max-width:600px;margin:0 auto}
+h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+
+.mode-row{display:flex;gap:8px;margin-bottom:1.5rem;justify-content:center}
+.mode-btn{padding:6px 18px;border-radius:20px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);font-size:13px;cursor:pointer;transition:all .15s}
+.mode-btn.active{background:var(--color-background-secondary);color:var(--color-text-primary);border-color:var(--color-border-primary);font-weight:500}
+
+.arena{display:flex;flex-direction:column;align-items:center;gap:1.5rem;padding:2rem 0 1rem}
+.target-display{font-size:13px;color:var(--color-text-secondary);letter-spacing:.05em}
+.target-display span{font-weight:500;color:var(--color-text-primary)}
+
+.ring-wrap{position:relative;width:180px;height:180px}
+#ring-svg{width:180px;height:180px;transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:var(--color-border-tertiary);stroke-width:10}
+.ring-fill{fill:none;stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset .1s linear}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+#elapsed-num{font-size:36px;font-weight:500;color:var(--color-text-primary);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+#elapsed-lbl{font-size:12px;color:var(--color-text-secondary)}
+
+#main-btn{width:160px;height:48px;border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);color:var(--color-text-primary);font-size:15px;font-weight:500;cursor:pointer;transition:all .12s;letter-spacing:.01em}
+#main-btn:hover{background:var(--color-background-tertiary);border-color:var(--color-border-primary)}
+#main-btn:active{transform:scale(0.97)}
+#main-btn.running{background:var(--color-background-danger);color:var(--color-text-danger);border-color:var(--color-border-danger)}
+
+.result-card{width:100%;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem 1.5rem;display:none}
+.result-card.show{display:block}
+.res-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem}
+.res-label{font-size:13px;color:var(--color-text-secondary)}
+.res-val{font-size:15px;font-weight:500;color:var(--color-text-primary)}
+.acc-bar-wrap{margin:.5rem 0 1rem}
+.acc-bar-track{height:8px;background:var(--color-border-tertiary);border-radius:4px;overflow:hidden}
+.acc-bar-fill{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.verdict{font-size:13px;font-weight:500;margin-top:.25rem}
+
+.history-section{margin-top:1.5rem}
+.history-label{font-size:12px;color:var(--color-text-secondary);margin-bottom:.75rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase}
+.history-grid{display:flex;flex-direction:column;gap:6px}
+.hist-row{display:flex;align-items:center;gap:10px}
+.hist-num{font-size:11px;color:var(--color-text-tertiary);width:16px;text-align:right;flex-shrink:0}
+.hist-bar-track{flex:1;height:6px;background:var(--color-border-tertiary);border-radius:3px;overflow:hidden;position:relative}
+.hist-bar-fill{height:100%;border-radius:3px}
+.hist-meta{font-size:11px;color:var(--color-text-secondary);min-width:70px;text-align:right;font-variant-numeric:tabular-nums}
+
+.stats-row{display:flex;gap:10px;margin-top:1.25rem}
+.stat-card{flex:1;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:.75rem;text-align:center}
+.stat-num{font-size:20px;font-weight:500;color:var(--color-text-primary)}
+.stat-lbl{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+
+.trend-hint{font-size:12px;color:var(--color-text-secondary);text-align:center;margin-top:.75rem;min-height:16px}
+</style>
+
+<div id="app">
+  <h2 class="sr-only">Time Perception Tester — press start, stop when you think the target time has passed, and see how accurate your internal clock is.</h2>
+
+  <div class="mode-row" id="modeRow">
+    <button class="mode-btn" data-s="10">10s</button>
+    <button class="mode-btn active" data-s="30">30s</button>
+    <button class="mode-btn" data-s="60">60s</button>
+  </div>
+
+  <div class="arena">
+    <div class="target-display">Stop when you feel <span id="targetLabel">30 seconds</span> have passed</div>
+
+    <div class="ring-wrap">
+      <svg id="ring-svg" viewBox="0 0 180 180">
+        <circle class="ring-bg" cx="90" cy="90" r="78"/>
+        <circle class="ring-fill" id="ringFill" cx="90" cy="90" r="78"
+          stroke="#7F77DD"
+          stroke-dasharray="490"
+          stroke-dashoffset="490"/>
+      </svg>
+      <div class="ring-center">
+        <span id="elapsed-num">—</span>
+        <span id="elapsed-lbl">seconds</span>
+      </div>
+    </div>
+
+    <button id="main-btn">Start</button>
+  </div>
+
+  <div class="result-card" id="resultCard">
+    <div class="res-row">
+      <span class="res-label">You stopped at</span>
+      <span class="res-val" id="resStopped">—</span>
+    </div>
+    <div class="res-row">
+      <span class="res-label">Target was</span>
+      <span class="res-val" id="resTarget">—</span>
+    </div>
+    <div class="res-row">
+      <span class="res-label">Difference</span>
+      <span class="res-val" id="resDiff">—</span>
+    </div>
+    <div class="acc-bar-wrap">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:12px;color:var(--color-text-secondary)">Accuracy</span>
+        <span style="font-size:12px;font-weight:500" id="resAccPct">—</span>
+      </div>
+      <div class="acc-bar-track">
+        <div class="acc-bar-fill" id="accBarFill" style="width:0%"></div>
+      </div>
+    </div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <div class="history-section" id="histSection" style="display:none">
+    <div class="history-label">Recent attempts</div>
+    <div class="history-grid" id="histGrid"></div>
+    <div class="stats-row" id="statsRow"></div>
+    <div class="trend-hint" id="trendHint"></div>
+  </div>
+</div>
+
+<script>
+const CIRCUM = 2 * Math.PI * 78;
+let target = 30, startTime = null, raf = null, history = [];
+
+const $ = id => document.getElementById(id);
+const ringFill = $('ringFill');
+ringFill.style.strokeDasharray = CIRCUM;
+ringFill.style.strokeDashoffset = CIRCUM;
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (startTime) return;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    target = +btn.dataset.s;
+    $('targetLabel').textContent = target + ' seconds';
+    reset();
+  });
+});
+
+$('main-btn').addEventListener('click', () => {
+  if (!startTime) startRound();
+  else stopRound();
+});
+
+function startRound() {
+  startTime = performance.now();
+  $('main-btn').textContent = 'Stop';
+  $('main-btn').classList.add('running');
+  $('resultCard').classList.remove('show');
+  $('elapsed-num').textContent = '0.0';
+  document.querySelectorAll('.mode-btn').forEach(b => b.style.opacity = '.4');
+  tick();
+}
+
+function tick() {
+  raf = requestAnimationFrame(() => {
+    if (!startTime) return;
+    const elapsed = (performance.now() - startTime) / 1000;
+    const capped = Math.min(elapsed, target * 2);
+    $('elapsed-num').textContent = elapsed.toFixed(1);
+    const progress = Math.min(elapsed / target, 1);
+    ringFill.style.strokeDashoffset = CIRCUM * (1 - progress);
+    const hue = Math.round(progress * 120);
+    const rcolor = progress < .85 ? '#7F77DD' : progress < 1 ? '#EF9F27' : '#E24B4A';
+    ringFill.style.stroke = rcolor;
+    tick();
+  });
+}
+
+function stopRound() {
+  if (!startTime) return;
+  const elapsed = (performance.now() - startTime) / 1000;
+  cancelAnimationFrame(raf);
+  startTime = null;
+  $('main-btn').textContent = 'Try again';
+  $('main-btn').classList.remove('running');
+  document.querySelectorAll('.mode-btn').forEach(b => b.style.opacity = '');
+  showResult(elapsed);
+  history.push({ elapsed, target, acc: accuracy(elapsed, target) });
+  renderHistory();
+}
+
+function accuracy(elapsed, tgt) {
+  const diff = Math.abs(elapsed - tgt);
+  return Math.max(0, 100 - (diff / tgt) * 100);
+}
+
+function showResult(elapsed) {
+  const diff = elapsed - target;
+  const acc = accuracy(elapsed, target);
+  $('resStopped').textContent = elapsed.toFixed(2) + 's';
+  $('resTarget').textContent = target + 's';
+  $('resDiff').textContent = (diff > 0 ? '+' : '') + diff.toFixed(2) + 's (' + (diff > 0 ? 'too slow' : 'too fast') + ')';
+  $('resAccPct').textContent = acc.toFixed(1) + '%';
+  const fill = $('accBarFill');
+  const barColor = acc >= 90 ? '#1D9E75' : acc >= 70 ? '#EF9F27' : '#E24B4A';
+  fill.style.background = barColor;
+  setTimeout(() => { fill.style.width = acc.toFixed(1) + '%'; }, 30);
+  const v = acc >= 95 ? ['Uncanny.', '#1D9E75'] : acc >= 85 ? ['Sharp perception.', '#1D9E75'] : acc >= 70 ? ['Getting warmer.', '#BA7517'] : acc >= 50 ? ['Keep practicing.', '#D85A30'] : ['Way off — try again.', '#E24B4A'];
+  $('verdict').textContent = v[0];
+  $('verdict').style.color = v[1];
+  $('resultCard').classList.add('show');
+}
+
+function renderHistory() {
+  const h = history.slice(-8).reverse();
+  if (!h.length) return;
+  $('histSection').style.display = '';
+  const grid = $('histGrid');
+  grid.innerHTML = '';
+  const maxDiff = Math.max(...h.map(r => Math.abs(r.elapsed - r.target)), 1);
+
+  h.forEach((r, i) => {
+    const diff = r.elapsed - r.target;
+    const absDiff = Math.abs(diff);
+    const barW = Math.round((absDiff / (r.target * 0.5)) * 100);
+    const barColor = r.acc >= 85 ? '#1D9E75' : r.acc >= 65 ? '#EF9F27' : '#E24B4A';
+    const row = document.createElement('div');
+    row.className = 'hist-row';
+    row.innerHTML = `<span class="hist-num">${history.length - i}</span>
+      <div class="hist-bar-track">
+        <div class="hist-bar-fill" style="width:${Math.min(barW,100)}%;background:${barColor}"></div>
+      </div>
+      <span class="hist-meta">${(diff>0?'+':'')+diff.toFixed(1)}s &nbsp; ${Math.round(r.acc)}%</span>`;
+    grid.appendChild(row);
+  });
+
+  const sameTarget = history.filter(r => r.target === target);
+  if (sameTarget.length >= 2) {
+    const avg = sameTarget.reduce((s,r) => s + r.acc, 0) / sameTarget.length;
+    const best = Math.max(...sameTarget.map(r => r.acc));
+    $('statsRow').innerHTML = `
+      <div class="stat-card"><div class="stat-num">${avg.toFixed(1)}%</div><div class="stat-lbl">Avg accuracy</div></div>
+      <div class="stat-card"><div class="stat-num">${best.toFixed(1)}%</div><div class="stat-lbl">Best attempt</div></div>
+      <div class="stat-card"><div class="stat-num">${sameTarget.length}</div><div class="stat-lbl">Attempts (${target}s)</div></div>`;
+
+    if (sameTarget.length >= 3) {
+      const recent = sameTarget.slice(-3).reduce((s,r) => s+r.acc,0)/3;
+      const older = sameTarget.slice(0,-3).reduce((s,r) => s+r.acc,0)/Math.max(sameTarget.length-3,1);
+      const delta = recent - older;
+      $('trendHint').textContent = delta > 2 ? 'Trending up — your internal clock is sharpening.' : delta < -2 ? 'Trending down — stay focused.' : 'Consistent — you have a stable baseline.';
+    }
+  }
+}
+
+function reset() {
+  $('elapsed-num').textContent = '—';
+  ringFill.style.strokeDashoffset = CIRCUM;
+  ringFill.style.stroke = '#7F77DD';
+  $('resultCard').classList.remove('show');
+  $('main-btn').textContent = 'Start';
+  $('main-btn').classList.remove('running');
+}
+</script>
